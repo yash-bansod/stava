@@ -37,7 +37,7 @@ public class StoreStmt {
 		
 		if (StoreEscape.MarkStoreEscaping) {
 			if (rhs instanceof Local) {
-				ptg.cascadeEscape((Local)rhs, summary);
+				ptg.cascadeEscape((Local)rhs, summary, "Store: mark store escaping");
 				return;
 			}
 		}
@@ -100,7 +100,7 @@ public class StoreStmt {
 		if (lhsObjSet == null) {
 			// the lhs.base must be a field variable.
 			// simply set rhs to escape
-			ptg.cascadeEscape(rhs, summary);
+			ptg.cascadeEscape(rhs, summary, "lhsIsJInstanceFieldRef and rhs instanceof Local and lhs.base must be field var: storeStmt");
 			return;
 		}
 		// add field object for every parent object.
@@ -110,11 +110,11 @@ public class StoreStmt {
 		} else {
 			ptg.WEAK_makeField((Local)lhs.getBase(), lhs.getField(), rhs);
 		}
-		ptg.propagateES((Local) lhs.getBase(), rhs, summary);
+		ptg.propagateES((Local) lhs.getBase(), rhs, summary, "lhsIsJInstanceFieldRef and rhs instanceof Local [propagating]: storeStmt");
 	}
 
 	private static void StaticStoreStmt(Unit u, PointsToGraph ptg, Map<ObjectNode, EscapeStatus> summary) {
-		ptg.cascadeEscape((Local) ((JAssignStmt) u).getRightOp(), summary);
+		ptg.cascadeEscape((Local) ((JAssignStmt) u).getRightOp(), summary, "lhs instanceof StaticFieldRef and rhs instanceof Local: staticStoreStmt");
 	}
 
 	private static void storeClassConstantToArrayRef(Unit u, PointsToGraph ptg, Map<ObjectNode, EscapeStatus> summary) {
@@ -125,7 +125,7 @@ public class StoreStmt {
 			throw new IllegalArgumentException("Object received from factory is not of required type: external");
 		}
 		ptg.storeStmtArrayRef((Local) lhs.getBase(), obj);
-		summary.put(obj, new EscapeStatus(Escape.getInstance()));
+		summary.put(obj, new EscapeStatus(Escape.getInstance(), "lhs instanceof JArrayRef and rhs instanceof ClassConstant: storeClassConstantToArrayRef"));
 	}
 
 	private static void storeClassConstantToInstanceFieldRefStmt(Unit u, PointsToGraph ptg, Map<ObjectNode, EscapeStatus> summary) {
@@ -142,7 +142,7 @@ public class StoreStmt {
 			ptg.WEAK_makeField((Local) lhs.getBase(), lhs.getField(), obj);
 		}
 
-		summary.put(obj, new EscapeStatus(Escape.getInstance()));
+		summary.put(obj, new EscapeStatus(Escape.getInstance(), "lhs instanceof JInstanceFieldRef and rhs instanceof ClassConstant: storeClassConstantToInstanceFieldRefStmt"));
 	}
 
 	private static void storeStringConstantToInstanceFieldRefStmt(Unit u, PointsToGraph ptg, Map<ObjectNode, EscapeStatus> summary) {
@@ -158,11 +158,14 @@ public class StoreStmt {
 			ptg.WEAK_makeField((Local) lhs.getBase(), lhs.getField(), obj);
 		}
 		EscapeStatus es = new EscapeStatus();
-		if (obj instanceof InvalidBCIObjectNode) es.setEscape();
+		if (obj instanceof InvalidBCIObjectNode) es.setEscapeWithReason("storeStringConstantToInstanceFieldRefStmt and obj instanceof InvalidBCIObjectNode");
 		if(!es.containsNoEscape()) {
 			for (ObjectNode parent : ptg.vars.get(lhs.getBase())) {
 				es.addEscapeStatus(summary.get(parent));
 			}
+		}
+		if(es.doesEscape()){
+			es.addStatusReason("storeStringConstantToInstanceFieldRefStmt");
 		}
 		summary.put(obj, es);
 	}
@@ -175,11 +178,14 @@ public class StoreStmt {
 		}
 		ptg.storeStmtArrayRef((Local) lhs.getBase(), obj);
 		EscapeStatus es = new EscapeStatus();
-		if (obj instanceof InvalidBCIObjectNode) es.setEscape();
+		if (obj instanceof InvalidBCIObjectNode) es.setEscapeWithReason("storeStringConstantToArrayRefStmt and obj instanceof InvalidBCIObjectNode");
 		if(!es.containsNoEscape()) {
 			for (ObjectNode parent : ptg.vars.get(lhs.getBase())) {
 				es.addEscapeStatus(summary.get(parent));
 			}
+		}
+		if(es.doesEscape()){
+			es.addStatusReason("storeStringConstantToArrayRefStmt");
 		}
 		summary.put(obj, es);
 	}
@@ -188,7 +194,7 @@ public class StoreStmt {
 		JArrayRef lhs = (JArrayRef) ((JAssignStmt) u).getLeftOp();
 		Local rhs = (Local) ((JAssignStmt) u).getRightOp();
 		ptg.storeStmtArrayRef((Local) lhs.getBase(), rhs);
-		ptg.propagateES((Local) lhs.getBase(), rhs, summary);
+		ptg.propagateES((Local) lhs.getBase(), rhs, summary, "lhs instanceof JArrayRef and rhs instanceof Local[propagating]: lhsArrayRef");
 	}
 
 	private static void eraseFieldRefStmt(Unit u, PointsToGraph ptg, Map<ObjectNode, EscapeStatus> summary) {

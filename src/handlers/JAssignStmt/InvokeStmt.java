@@ -91,6 +91,9 @@ public class InvokeStmt {
 			ptg.addVar(lhs, n);
 		}
 		// System.out.println("Putting at "+n+": "+es+" Unit: "+u);
+		if(es.doesEscape()){
+			es.addStatusReason("InvokeStmt: handle");
+		}
 		summary.put(n, es);
 //		if(!m.isJavaLibraryMethod()) {
 //			System.out.println(m.toString()+" is not a library method");

@@ -207,7 +207,7 @@ public class ReworkedResolver{
                     else {
                         newStates.add(state);
                         if(state instanceof Escape) {
-                            this.solvedSummaries.get(key).put(obj, new EscapeStatus(Escape.getInstance()));
+                            this.solvedSummaries.get(key).put(obj, new EscapeStatus(Escape.getInstance(), "already escaping: AddCallerSummaries"));
                         }
                     }
                 }
@@ -297,6 +297,7 @@ public class ReworkedResolver{
                 for (EscapeState state : status.status ) {
                     if ( state instanceof ConditionalValue) {
                         ConditionalValue cstate = (ConditionalValue)state;
+                        // System.out.println("CONDITIONAL VALS: "+cstate.toString());
                         // if ( cstate.object.equals(new ObjectNode(0, ObjectType.returnValue)) 
                         //     && cstate.method == null) {
                         //         cstate.method = key;
@@ -362,7 +363,7 @@ public class ReworkedResolver{
         }
         /*
          *  Find the objects passed and the respective dummy nodes, and match every field.
-         * 
+         * **IMP**
          */
         List<StandardObject[] > toAlter = new ArrayList<>();
         for (StandardObject obj1: this.graph.keySet()) {
@@ -649,12 +650,12 @@ public class ReworkedResolver{
                 //         markObjectAsEscaping(obj);
                 // }
                 System.err.println("Identified as return obj: "+sobj);
-                SetComponent(component, Escape.getInstance());
+                SetComponent(component, Escape.getInstance(), "Identified as return obj: resolve");
                 return;
             }
             if (isEscapingObject(sobj)) {
                 System.err.println("Identified as escaping obj: "+sobj);
-                SetComponent(component, Escape.getInstance());
+                SetComponent(component, Escape.getInstance(), "Identified as escaping obj: resolve");
                 return;
             }
             // if (isAssignedToThis(sobj)) {
@@ -665,7 +666,7 @@ public class ReworkedResolver{
                 if (sobj.getObject().type == ObjectType.parameter) {
                     if (isEscapingParam(sobj)) {
                         System.err.println("Identified as escaping param: "+sobj);
-                        SetComponent(component, Escape.getInstance());
+                        SetComponent(component, Escape.getInstance(), "Identified as escaping param: resolve");
                         return;
                     }
                     continue;
@@ -687,7 +688,7 @@ public class ReworkedResolver{
                         }
                     if (isEscapingObject(nxt)) {
                         System.err.println("Escaping obj: "+nxt);
-                        SetComponent(component, Escape.getInstance());
+                        SetComponent(component, Escape.getInstance(), "Escaping obj: resolve");
                         return;
                     }
                 }
@@ -699,14 +700,14 @@ public class ReworkedResolver{
                 
             }
         }
-        SetComponent(component, NoEscape.getInstance());
+        SetComponent(component, NoEscape.getInstance(), "");
     }
 
-    void SetComponent ( List<StandardObject> comp, EscapeState es) {
+    void SetComponent ( List<StandardObject> comp, EscapeState es, String reason) {
         System.err.println("comp:"+comp+" : "+es);
         for (StandardObject s: comp) {
             if (this.solvedSummaries.get(s.getMethod()) != null)
-                this.solvedSummaries.get(s.getMethod()).put(s.getObject(), new EscapeStatus(es));
+                this.solvedSummaries.get(s.getMethod()).put(s.getObject(), new EscapeStatus(es, reason));
         }
     }
 }

@@ -46,14 +46,14 @@ public class NewStmt {
 		Value rhs = ((JAssignStmt) u).getRightOp();
 		Value lhs = ((JAssignStmt) u).getLeftOp();
 		EscapeStatus es = new EscapeStatus();
-		if (IsMultiThreadedClass.check(((JNewExpr) rhs).getBaseType().getSootClass())) es.setEscape();
+		if (IsMultiThreadedClass.check(((JNewExpr) rhs).getBaseType().getSootClass())) es.setEscapeWithReason("rhs instanceof JNewExpr and IsMultiThreadedClass.check(((JNewExpr) rhs).getBaseType().getSootClass()): JNewStmt");
 
 		ObjectNode obj;
 		try {
 			obj = new ObjectNode(getBCI.get(u), ObjectType.internal);
 		} catch (Exception e1) {
 			obj = InvalidBCIObjectNode.getInstance(ObjectType.internal);
-			es.setEscape();
+			es.setEscapeWithReason("rhs instanceof JNewExpr and caught exception: JNewStmt");
 		}
 		if (AssignStmtHandler.NEW == UpdateType.STRONG){
 			ptg.forcePutVar((Local) lhs, obj);

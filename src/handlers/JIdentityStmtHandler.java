@@ -46,7 +46,7 @@ public class JIdentityStmtHandler {
 			obj = new ObjectNode(-1, ObjectType.external);
 			ptg.forcePutVar((Local) lhs, obj);
 			EscapeStatus e = new EscapeStatus();
-			e.setEscape();
+			e.setEscapeWithReason("rhs instanceof JCaughtExceptionRef && lhs instanceof Local: handle JIdentityStmtHandler");
 			summary.put(obj, e);
 		} else {
 			try {

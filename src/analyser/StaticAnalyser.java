@@ -175,7 +175,7 @@ public class StaticAnalyser extends BodyTransformer {
 			 * 2. outNew = apply(u, inNew)
 			 * 3. if(outNew != out[u]):
 			 * 		add successors to workListNext
-			 * 		out[u] = outNew
+			 * 		out[u] = union(outNew)
 			 */
 			// ObjectNode scrutinyObject = new ObjectNode(17, ObjectType.internal);
 			Iterator<Unit> iterator = workList.iterator();
@@ -306,7 +306,7 @@ public class StaticAnalyser extends BodyTransformer {
 			// System.out.println(ptg);
 			// System.out.println(summary);
 			// System.out.println("Escap: "+obj);
-			ptg.cascadeEscape(obj, summary);
+			ptg.cascadeEscape(obj, summary, "obj in nativeList");
 		}
 	}
 
@@ -320,7 +320,7 @@ public class StaticAnalyser extends BodyTransformer {
 	private void setParamsAsEscaping(SootMethod m, Map<ObjectNode, EscapeStatus> summary) {
 		summary.clear();
 		for (int i=0; i< m.getParameterCount(); i++) {
-			summary.put(new ObjectNode(i, ObjectType.parameter), new EscapeStatus(Escape.getInstance()));
+			summary.put(new ObjectNode(i, ObjectType.parameter), new EscapeStatus(Escape.getInstance(), "Parameter set as escaping"));
 		}
 	}
 

@@ -4,29 +4,42 @@ import soot.SootField;
 
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Vector;
 
 public class EscapeStatus {
 
 	public HashSet<EscapeState> status;
+	public Vector<String> statusReason;
 
 	public EscapeStatus() {
 		status = new HashSet<>();
 		status.add(NoEscape.getInstance());
+		statusReason = new Vector<String>();
 	}
 
 	public EscapeStatus(EscapeState es) {
 		status = new HashSet<>();
 		status.add(es);
+		statusReason = new Vector<String>();
 	}
 
 	public EscapeStatus(EscapeStatus es) {
 		status = new HashSet<>();
 		status.addAll(es.status);
+		statusReason = new Vector<>();
+		statusReason.addAll(es.statusReason);
+	}
+
+	public EscapeStatus(EscapeState es, String reason){
+		status = new HashSet<>();
+		status.add(es);
+		statusReason = new Vector<>();
+		statusReason.add(reason);
 	}
 
 	@Override
 	public String toString() {
-		return status.toString();
+		return status.toString() +" ESCAPE STATUS "+ statusReason.toString() + "\n";
 	}
 
 	public void purge() {
@@ -40,6 +53,7 @@ public class EscapeStatus {
 
 	public void purgeAndEscape() {
 		HashSet<EscapeState> es = new HashSet<EscapeState>();
+		statusReason.clear();
 		es.add(Escape.getInstance());
 		status = es;
 	}
@@ -66,7 +80,10 @@ public class EscapeStatus {
 	}
 
 	public void addEscapeStatus(EscapeStatus es) {
-		if (es != null) this.status.addAll(es.getStatus());
+		if (es != null){
+			this.status.addAll(es.getStatus());
+			this.statusReason.addAll(es.getReason());
+		}
 		purge();
 	}
 
@@ -132,6 +149,23 @@ public class EscapeStatus {
 			_ret.addEscapeState((((ConditionalValue) cv).makeFalseClone()));
 		});
 		return _ret;
+	}
+
+	public Vector<String> getReason(){
+		return statusReason;
+	}
+
+	public void addStatusReason(String reason){
+		statusReason.add(reason);
+	}
+
+	public String reasonToString(){
+		return statusReason.toString();
+	}
+
+	public void setEscapeWithReason(String reason){
+		setEscape();
+		statusReason.add(reason);
 	}
 
 }

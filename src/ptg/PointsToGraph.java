@@ -320,7 +320,7 @@ public class PointsToGraph {
 		// children.forEach(child -> recursiveCascadeES(child, cv, summary, done));
 	}
 
-	public void propagateES(Local lhs, Local rhs, Map<ObjectNode, EscapeStatus> summary) {
+	public void propagateES(Local lhs, Local rhs, Map<ObjectNode, EscapeStatus> summary, String reason) {
 		EscapeStatus es1 = new EscapeStatus();
 		if (! vars.containsKey(lhs) ) {
 			return;
@@ -329,6 +329,9 @@ public class PointsToGraph {
 			es1.addEscapeStatus(summary.get(parent));
 		}
 		EscapeStatus es2 = es1.makeFalseClone();
+		if(es2.doesEscape()){
+			es2.addStatusReason(reason);
+		}
 		Set<ObjectNode> done = new HashSet<>();
 		if (vars.containsKey(rhs)) {
 			for (ObjectNode obj : vars.get(rhs)) {
@@ -368,25 +371,25 @@ public class PointsToGraph {
 	}
 
 
-	public void cascadeEscape(Local l, Map<ObjectNode, EscapeStatus> summary) {
+	public void cascadeEscape(Local l, Map<ObjectNode, EscapeStatus> summary, String reason) {
 		if (!vars.containsKey(l)) return;
 		HashSet<ObjectNode> done = new HashSet<>();
 		vars.get(l).forEach(object -> {
-			recursiveCascadeEscape(object, summary, done);
+			recursiveCascadeEscape(object, summary, done, reason);
 			done.add(object);
 		});
 	}
 
-	public void recursiveCascadeEscape(ObjectNode object, Map<ObjectNode, EscapeStatus> summary, HashSet<ObjectNode> done) {
+	public void recursiveCascadeEscape(ObjectNode object, Map<ObjectNode, EscapeStatus> summary, HashSet<ObjectNode> done, String reason) {
 		if (done.contains(object)) return;
-		summary.get(object).setEscape();
+		summary.get(object).setEscapeWithReason(reason);
 		done.add(object);
 		HashSet<ObjectNode> children = new HashSet<>();
 		if (fields.containsKey(object)) {
 			fields.get(object).forEach((field, objSet) -> children.addAll(objSet));
 		}
 		children.remove(object);
-		children.forEach(child -> recursiveCascadeEscape(child, summary, done));
+		children.forEach(child -> recursiveCascadeEscape(child, summary, done, reason));
 	}
 
 	public void storeStmtArrayRef(Local lhs, Local rhs) {

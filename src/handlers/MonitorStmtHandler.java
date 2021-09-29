@@ -17,7 +17,7 @@ public class MonitorStmtHandler {
 		Value op = stmt.getOp();
 		if (op instanceof Local) {
 			if (ptg.vars.containsKey(op)) {
-				ptg.vars.get(op).forEach(obj -> summary.get(obj).setEscape());
+				ptg.vars.get(op).forEach(obj -> summary.get(obj).setEscapeWithReason("op instanceof Local: handle MonitorStmtHandler"));
 			} else {
 				System.out.println("[MonitorStmtHandler] Warning: No ptset for " + u.toString() + " found!");
 //				throw new IllegalArgumentException("No ptset for "+u.toString()+" found!");

@@ -197,7 +197,7 @@ public class JInvokeStmtHandler {
 						if ( !(arg instanceof Constant) )	{		// Notice the not(!) 
 							if (isNative && !iswhiteListed) {
 								System.out.println("Escaping: "+args.get(i));
-								ptg.cascadeEscape((Local) args.get(i), summary);
+								ptg.cascadeEscape((Local) args.get(i), summary, "isNative && !iswhiteListed: JInvokeStmtHandler handler");
 								nativeLocals.putIfAbsent(srcMethod,new ArrayList<>());
 								nativeLocals.get(srcMethod).add((Local)args.get(i));
 							}

@@ -69,8 +69,8 @@ public class JAssignStmtHandler {
 		}
 		Local lhs = (Local) ((JAssignStmt) u).getLeftOp();
 		ptg.addVar(lhs, obj);
-		EscapeStatus es = new EscapeStatus(Escape.getInstance());
-		if (obj instanceof InvalidBCIObjectNode) es.setEscape();
+		EscapeStatus es = new EscapeStatus(Escape.getInstance(), "lhs instanceof Local and rhs instanceof StringConstant || rhs instanceof ClassConstant: storeConstantToLocal");
+		if (obj instanceof InvalidBCIObjectNode) es.setEscapeWithReason("storeConstantToLocal: obj instanceof InvalidBCIObjectNode");
 		summary.put(obj, es);
 	}
 

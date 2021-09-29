@@ -42,7 +42,7 @@ public class LoadStmt {
 	private static void staticField(Unit u, PointsToGraph ptg, Map<ObjectNode, EscapeStatus> summary) {
 		Local lhs = (Local) ((JAssignStmt) u).getLeftOp();
 		ObjectNode obj = new ObjectNode(getBCI.get(u), ObjectType.external);
-		EscapeStatus es = new EscapeStatus(Escape.getInstance());
+		EscapeStatus es = new EscapeStatus(Escape.getInstance(), "rhs instanceof StaticFieldRef");
 		if(AssignStmtHandler.LOAD == UpdateType.STRONG) {
 			ptg.forcePutVar(lhs, obj);
 		} else {
@@ -90,7 +90,10 @@ public class LoadStmt {
 				}
 				// make field
 				EscapeStatus es = parentsES.makeField(rhs.getField());
-				if(obj instanceof InvalidBCIObjectNode) es.setEscape();
+				if(obj instanceof InvalidBCIObjectNode) es.setEscapeWithReason("LoadStmt instanceField: obj instanceof InvalidBCIObjectNode");
+				if(es.doesEscape()){
+					es.addStatusReason("LoadStmt instanceField");
+				}
 				summary.put(obj, es);
 			}
 		} else {
@@ -98,7 +101,7 @@ public class LoadStmt {
 			// no need to do rhs.base -field> obj
 			// set to escape
 			ObjectNode obj = ObjectNode.createObject(u, ObjectType.external);
-			EscapeStatus es = new EscapeStatus(Escape.getInstance());
+			EscapeStatus es = new EscapeStatus(Escape.getInstance(),"might be a field variable, and hence has no definition: instanceField LoadStmt");
 			if(AssignStmtHandler.LOAD==UpdateType.STRONG) ptg.forcePutVar(lhs, obj);
 			else ptg.addVar(lhs, obj);
 			summary.put(obj, es);
@@ -120,7 +123,7 @@ public class LoadStmt {
 			// The base might be a field variable for the object.
 			ObjectNode obj = new ObjectNode(utils.getBCI.get(u), ObjectType.external);
 			ptg.forcePutVar(lhs, obj);
-			summary.put(obj, new EscapeStatus(Escape.getInstance()));
+			summary.put(obj, new EscapeStatus(Escape.getInstance(), "rhs instanceof JArrayRef and !ptg.vars.containsKey(base): rhsArrayRef LoadStmt"));
 			return;
 		}
 
@@ -150,7 +153,7 @@ public class LoadStmt {
 			ptg.WEAK_makeField(parent, f, child);
 			EscapeStatus es = summary.get(parent).makeField(f);
 			if (summary.containsKey(child)) {
-				summary.get(child).status.addAll(es.status);
+				summary.get(child).addEscapeStatus(es);
 			} else {
 				summary.put(child, es);
 			}

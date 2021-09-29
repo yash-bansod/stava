@@ -16,7 +16,7 @@ public class JThrowStmtHandler {
 		Value op = stmt.getOp();
 		if (op instanceof Local) {
 			if (ptg.vars.containsKey(op)) {
-				ptg.vars.get(op).forEach(obj -> summary.get(obj).setEscape());
+				ptg.vars.get(op).forEach(obj -> summary.get(obj).setEscapeWithReason("op instanceof Local: handle JThrowStmtHandler"));
 			} else {
 				// throw new IllegalArgumentException("No ptset for " + u.toString() + " found!");
 			}
