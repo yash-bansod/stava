@@ -215,7 +215,7 @@ public class StaticAnalyser extends BodyTransformer {
 					// System.out.println("Initial Summary Size: "+ getSummarySize(summary));
 					// System.err.println(u);
 					// System.err.println("outNew:"+outNew);
-					apply(body.getMethod(), u, outNew, summary);
+					apply(body, body.getMethod(), u, outNew, summary);
 					// System.err.println("outNew:"+outNew);
 					// int sz = getSummarySize(summary);
 					// System.out.println("Final Summary Size: "+ sz);
@@ -330,10 +330,10 @@ public class StaticAnalyser extends BodyTransformer {
 	 * changes on.
 	 */
 
-	public void apply(SootMethod m, Unit u, PointsToGraph ptg, Map<ObjectNode, EscapeStatus> summary) {
+	public void apply(Body body, SootMethod m, Unit u, PointsToGraph ptg, Map<ObjectNode, EscapeStatus> summary) {
 		// System.err.println(u+" "+u.getClass().getName());
 		if (u instanceof JAssignStmt) {
-			JAssignStmtHandler.handle(m, u, ptg, summary);
+			JAssignStmtHandler.handle(body, m, u, ptg, summary);
 		} else if (u instanceof JIdentityStmt) {
 			JIdentityStmtHandler.handle(m, u, ptg, summary);
 		} else if (u instanceof JInvokeStmt) {

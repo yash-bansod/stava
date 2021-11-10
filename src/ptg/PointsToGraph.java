@@ -283,6 +283,19 @@ public class PointsToGraph {
 		}
 	}
 
+	public void cascadeCV(Local l, ConditionalValue cv, Map<ObjectNode, EscapeStatus> summary, boolean isRecapture) {
+		if (!vars.containsKey(l)) return;
+		HashSet<ObjectNode> done = new HashSet<ObjectNode>();
+		Iterator<ObjectNode> it = vars.get(l).iterator();
+		while (it.hasNext()) {
+			ObjectNode o = it.next();
+			if (summary.containsKey(o)) {
+				summary.get(o).addEscapeState(cv, isRecapture);
+			} else summary.put(o, new EscapeStatus(cv, isRecapture));
+			done.add(o);
+		}
+	}
+
 	// public void cascadeES(Local l, Map<ObjectNode, EscapeStatus> summary) {
 	// 	if (!vars.containsKey(l)) return;
 	// 	HashSet<ObjectNode> done = new HashSet<ObjectNode>();
@@ -339,6 +352,27 @@ public class PointsToGraph {
 		}
 	}
 
+	public void propagateES(Local lhs, Local rhs, Map<ObjectNode, EscapeStatus> summary, boolean r) {
+		EscapeStatus es1 = new EscapeStatus();
+		if (! vars.containsKey(lhs) ) {
+			return;
+		}
+		for (ObjectNode parent : vars.get(lhs)) {
+			es1.addEscapeStatus(summary.get(parent));
+		}
+		EscapeStatus es2 = es1.makeFalseClone();
+		Set<ObjectNode> done = new HashSet<>();
+		if (vars.containsKey(rhs)) {
+			for (ObjectNode obj : vars.get(rhs)) {
+				summary.get(obj).addEscapeStatus(es2);
+				summary.get(obj).setRecapture(r);
+				recursivePropagateES(obj, es2, summary, done, r);
+				done.add(obj);
+			}
+		}
+	}
+
+
 	public void recursivePropagateES(ObjectNode obj, EscapeStatus es, Map<ObjectNode, EscapeStatus> summary, Set<ObjectNode> done) {
 		if (done.contains(obj)) return;
 		if (!fields.containsKey(obj)) return;
@@ -357,14 +391,33 @@ public class PointsToGraph {
 		}
 	}
 
-	public void setAsReturn(SootMethod m, Local l, Map<ObjectNode, EscapeStatus> summary) {
+	public void recursivePropagateES(ObjectNode obj, EscapeStatus es, Map<ObjectNode, EscapeStatus> summary, Set<ObjectNode> done, boolean r) {
+		if (done.contains(obj)) return;
+		if (!fields.containsKey(obj)) return;
+		HashSet<ObjectNode> children = new HashSet<ObjectNode>();
+		Map<SootField, Set<ObjectNode>> map = fields.get(obj);
+		map.forEach((f, set) -> {
+			for (ObjectNode o : set) {
+				summary.get(o).addEscapeStatus(es);
+				summary.get(o).setRecapture(r);
+				children.add(o);
+			}
+		});
+		done.add(obj);
+		children.remove(obj);
+		for (ObjectNode child : children) {
+			recursivePropagateES(child, es, summary, done, r);
+		}
+	}
+
+	public void setAsReturn(SootMethod m, Local l, Map<ObjectNode, EscapeStatus> summary, boolean isRecapture) {
 		if (!vars.containsKey(l)) return;
 		Set<ObjectNode> s = new HashSet<>();
 		s.addAll(vars.get(l));
 		// TODO: Incorrect. Rectify this.
 		vars.put(RetLocal.getInstance(), s);
 		ConditionalValue ret = ConditionalValue.getRetCV(m);
-		cascadeCV(l, ret, summary);
+		cascadeCV(l, ret, summary, isRecapture);
 	}
 
 
@@ -373,6 +426,15 @@ public class PointsToGraph {
 		HashSet<ObjectNode> done = new HashSet<>();
 		vars.get(l).forEach(object -> {
 			recursiveCascadeEscape(object, summary, done);
+			done.add(object);
+		});
+	}
+
+	public void cascadeEscape(Local l, Map<ObjectNode, EscapeStatus> summary, boolean r) {
+		if (!vars.containsKey(l)) return;
+		HashSet<ObjectNode> done = new HashSet<>();
+		vars.get(l).forEach(object -> {
+			recursiveCascadeEscape(object, summary, done, r);
 			done.add(object);
 		});
 	}
@@ -387,6 +449,19 @@ public class PointsToGraph {
 		}
 		children.remove(object);
 		children.forEach(child -> recursiveCascadeEscape(child, summary, done));
+	}
+
+	public void recursiveCascadeEscape(ObjectNode object, Map<ObjectNode, EscapeStatus> summary, HashSet<ObjectNode> done, boolean r) {
+		if (done.contains(object)) return;
+		summary.get(object).setEscape();
+		summary.get(object).setRecapture(r);
+		done.add(object);
+		HashSet<ObjectNode> children = new HashSet<>();
+		if (fields.containsKey(object)) {
+			fields.get(object).forEach((field, objSet) -> children.addAll(objSet));
+		}
+		children.remove(object);
+		children.forEach(child -> recursiveCascadeEscape(child, summary, done, r));
 	}
 
 	public void storeStmtArrayRef(Local lhs, Local rhs) {

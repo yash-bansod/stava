@@ -10,6 +10,8 @@ import soot.Local;
 import soot.SootField;
 import soot.Unit;
 import soot.Value;
+import soot.SootMethod;
+import soot.Body;
 import soot.jimple.ClassConstant;
 import soot.jimple.NullConstant;
 import soot.jimple.StaticFieldRef;
@@ -21,7 +23,6 @@ import utils.AnalysisError;
 
 import java.util.Map;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 
 
@@ -30,11 +31,15 @@ import java.util.Set;
  * The sanitation check to ensure the appropriate types has been skipped for performance.
  */
 public class StoreStmt {
-	public static void handle(Unit u, PointsToGraph ptg, Map<ObjectNode, EscapeStatus> summary) {
+	public static void handle(Body body, SootMethod m, Unit u, PointsToGraph ptg, Map<ObjectNode, EscapeStatus> summary) {
 		JAssignStmt stmt = (JAssignStmt) u;
 		Value lhs = stmt.getLeftOp();
 		Value rhs = stmt.getRightOp();
-		
+		HashSet<Local> paramList = new HashSet<>();
+		boolean isParamRef = false;
+		for(int i=0; i<m.getParameterCount();i++){
+			paramList.add(body.getParameterLocal(i));
+		}
 		if (StoreEscape.MarkStoreEscaping) {
 			if (rhs instanceof Local) {
 				ptg.cascadeEscape((Local)rhs, summary);
@@ -43,35 +48,43 @@ public class StoreStmt {
 		}
 
 		if (lhs instanceof JInstanceFieldRef) {
-			lhsIsJInstanceFieldRef(rhs, u, ptg, summary);
+			if(paramList.contains((Local)((JInstanceFieldRef)lhs).getBase())){
+				System.out.println(((JInstanceFieldRef)lhs).getBase() + " ParamRef " + m.getBytecodeSignature());
+				isParamRef = true;
+			}
+			lhsIsJInstanceFieldRef(rhs, u, ptg, summary, isParamRef);
 		} else if (lhs instanceof StaticFieldRef) {
 			if (rhs instanceof StringConstant || rhs instanceof NullConstant || rhs instanceof ClassConstant) {
 				// Nothing to do!
 			} else if (rhs instanceof Local) {
-				StaticStoreStmt(u, ptg, summary);
+				StaticStoreStmt(u, ptg, summary, isParamRef);
 			} else AnalysisError.unidentifiedAssignStmtCase(u);
 		} else if (lhs instanceof JArrayRef) {
+			if(paramList.contains((Local)((JArrayRef)lhs).getBase())){
+				System.out.println(((JArrayRef)lhs).getBase() + " ParamRef " + m.getBytecodeSignature());
+				isParamRef = true;
+			}
 			if (rhs instanceof StringConstant) {
-				storeStringConstantToArrayRefStmt(u, ptg, summary);
+				storeStringConstantToArrayRefStmt(u, ptg, summary, isParamRef);
 			} else if (rhs instanceof ClassConstant) {
-				storeClassConstantToArrayRef(u, ptg, summary);
+				storeClassConstantToArrayRef(u, ptg, summary, isParamRef);
 			} else if (rhs instanceof Local) {
-				lhsArrayRef(u, ptg, summary);
+				lhsArrayRef(u, ptg, summary, isParamRef);
 			} else if (rhs instanceof NullConstant) {
 				// nothing to do here as we have only weak updates for an arrayref!
 			} else AnalysisError.unidentifiedAssignStmtCase(u);
 		} else AnalysisError.unidentifiedAssignStmtCase(u);
 	}
 
-	private static void lhsIsJInstanceFieldRef(Value rhs, Unit u, PointsToGraph ptg, Map<ObjectNode, EscapeStatus> summary) {
+	private static void lhsIsJInstanceFieldRef(Value rhs, Unit u, PointsToGraph ptg, Map<ObjectNode, EscapeStatus> summary, boolean isParamRef) {
 		if (rhs instanceof StringConstant) {
-			storeStringConstantToInstanceFieldRefStmt(u, ptg, summary);
+			storeStringConstantToInstanceFieldRefStmt(u, ptg, summary, isParamRef);
 		} else if (rhs instanceof NullConstant) {
-			eraseFieldRefStmt(u, ptg, summary);
+			eraseFieldRefStmt(u, ptg, summary, isParamRef);
 		} else if (rhs instanceof Local) {
-			storeStmt(u, ptg, summary);
+			storeStmt(u, ptg, summary, isParamRef);
 		} else if (rhs instanceof ClassConstant) {
-			storeClassConstantToInstanceFieldRefStmt(u, ptg, summary);
+			storeClassConstantToInstanceFieldRefStmt(u, ptg, summary, isParamRef);
 		}
 		else {
 			AnalysisError.unidentifiedAssignStmtCase(u);
@@ -92,7 +105,7 @@ public class StoreStmt {
 	 * 		es(rhs) U= es(object).field_name
 	 * }
 	 */
-	private static void storeStmt(Unit u, PointsToGraph ptg, Map<ObjectNode, EscapeStatus> summary) {
+	private static void storeStmt(Unit u, PointsToGraph ptg, Map<ObjectNode, EscapeStatus> summary, boolean isParamRef) {
 		// Store case
 		JInstanceFieldRef lhs = (JInstanceFieldRef) ((JAssignStmt) u).getLeftOp();
 		Local rhs = (Local) ((JAssignStmt) u).getRightOp();
@@ -100,7 +113,7 @@ public class StoreStmt {
 		if (lhsObjSet == null) {
 			// the lhs.base must be a field variable.
 			// simply set rhs to escape
-			ptg.cascadeEscape(rhs, summary);
+			ptg.cascadeEscape(rhs, summary, isParamRef);
 			return;
 		}
 		// add field object for every parent object.
@@ -110,14 +123,14 @@ public class StoreStmt {
 		} else {
 			ptg.WEAK_makeField((Local)lhs.getBase(), lhs.getField(), rhs);
 		}
-		ptg.propagateES((Local) lhs.getBase(), rhs, summary);
+		ptg.propagateES((Local) lhs.getBase(), rhs, summary, isParamRef);
 	}
 
-	private static void StaticStoreStmt(Unit u, PointsToGraph ptg, Map<ObjectNode, EscapeStatus> summary) {
+	private static void StaticStoreStmt(Unit u, PointsToGraph ptg, Map<ObjectNode, EscapeStatus> summary, boolean isParamRef) {
 		ptg.cascadeEscape((Local) ((JAssignStmt) u).getRightOp(), summary);
 	}
 
-	private static void storeClassConstantToArrayRef(Unit u, PointsToGraph ptg, Map<ObjectNode, EscapeStatus> summary) {
+	private static void storeClassConstantToArrayRef(Unit u, PointsToGraph ptg, Map<ObjectNode, EscapeStatus> summary, boolean isParamRef) {
 		JArrayRef lhs = (JArrayRef) ((JAssignStmt) u).getLeftOp();
 		ObjectNode obj = ObjectFactory.getObj(u);
 		if (obj.type != ObjectType.internal) {
@@ -125,10 +138,10 @@ public class StoreStmt {
 			throw new IllegalArgumentException("Object received from factory is not of required type: external");
 		}
 		ptg.storeStmtArrayRef((Local) lhs.getBase(), obj);
-		summary.put(obj, new EscapeStatus(Escape.getInstance()));
+		summary.put(obj, new EscapeStatus(Escape.getInstance(), isParamRef));
 	}
 
-	private static void storeClassConstantToInstanceFieldRefStmt(Unit u, PointsToGraph ptg, Map<ObjectNode, EscapeStatus> summary) {
+	private static void storeClassConstantToInstanceFieldRefStmt(Unit u, PointsToGraph ptg, Map<ObjectNode, EscapeStatus> summary, boolean isParamRef) {
 		JInstanceFieldRef lhs = (JInstanceFieldRef) ((JAssignStmt) u).getLeftOp();
 		ObjectNode obj = ObjectFactory.getObj(u);
 		if (obj.type != ObjectType.internal) {
@@ -142,10 +155,10 @@ public class StoreStmt {
 			ptg.WEAK_makeField((Local) lhs.getBase(), lhs.getField(), obj);
 		}
 
-		summary.put(obj, new EscapeStatus(Escape.getInstance()));
+		summary.put(obj, new EscapeStatus(Escape.getInstance(), isParamRef));
 	}
 
-	private static void storeStringConstantToInstanceFieldRefStmt(Unit u, PointsToGraph ptg, Map<ObjectNode, EscapeStatus> summary) {
+	private static void storeStringConstantToInstanceFieldRefStmt(Unit u, PointsToGraph ptg, Map<ObjectNode, EscapeStatus> summary, boolean isParamRef) {
 		JInstanceFieldRef lhs = (JInstanceFieldRef) ((JAssignStmt) u).getLeftOp();
 		ObjectNode obj = ObjectFactory.getObj(u);
 		if (obj.type != ObjectType.internal) {
@@ -164,10 +177,11 @@ public class StoreStmt {
 				es.addEscapeStatus(summary.get(parent));
 			}
 		}
+		es.setRecapture(isParamRef);
 		summary.put(obj, es);
 	}
 
-	private static void storeStringConstantToArrayRefStmt(Unit u, PointsToGraph ptg, Map<ObjectNode, EscapeStatus> summary) {
+	private static void storeStringConstantToArrayRefStmt(Unit u, PointsToGraph ptg, Map<ObjectNode, EscapeStatus> summary, boolean isParamRef) {
 		JArrayRef lhs = (JArrayRef) ((JAssignStmt) u).getLeftOp();
 		ObjectNode obj = ObjectFactory.getObj(u);
 		if (obj.type != ObjectType.internal) {
@@ -181,17 +195,18 @@ public class StoreStmt {
 				es.addEscapeStatus(summary.get(parent));
 			}
 		}
+		es.setRecapture(isParamRef);
 		summary.put(obj, es);
 	}
 
-	private static void lhsArrayRef(Unit u, PointsToGraph ptg, Map<ObjectNode, EscapeStatus> summary) {
+	private static void lhsArrayRef(Unit u, PointsToGraph ptg, Map<ObjectNode, EscapeStatus> summary, boolean isParamRef) {
 		JArrayRef lhs = (JArrayRef) ((JAssignStmt) u).getLeftOp();
 		Local rhs = (Local) ((JAssignStmt) u).getRightOp();
 		ptg.storeStmtArrayRef((Local) lhs.getBase(), rhs);
-		ptg.propagateES((Local) lhs.getBase(), rhs, summary);
+		ptg.propagateES((Local) lhs.getBase(), rhs, summary, isParamRef);
 	}
 
-	private static void eraseFieldRefStmt(Unit u, PointsToGraph ptg, Map<ObjectNode, EscapeStatus> summary) {
+	private static void eraseFieldRefStmt(Unit u, PointsToGraph ptg, Map<ObjectNode, EscapeStatus> summary, boolean isParamRef) {
 		if(AssignStmtHandler.STORE==UpdateType.WEAK) return;
 		JInstanceFieldRef lhs = (JInstanceFieldRef) ((JAssignStmt) u).getLeftOp();
 		if (!ptg.vars.containsKey(lhs.getBase())) return;

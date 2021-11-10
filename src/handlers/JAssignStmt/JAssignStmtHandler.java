@@ -18,7 +18,7 @@ import java.util.Iterator;
 import java.util.Set;
 
 public class JAssignStmtHandler {
-	public static void handle(SootMethod m, Unit u, PointsToGraph ptg, Map<ObjectNode, EscapeStatus> summary) {
+	public static void handle(Body body, SootMethod m, Unit u, PointsToGraph ptg, Map<ObjectNode, EscapeStatus> summary) {
 		{
 			/*
 			 * JAssignStmt Example:
@@ -37,7 +37,7 @@ public class JAssignStmtHandler {
 				lhsIsLocal(m, rhs, u, ptg, summary);
 			} else if (lhs instanceof Ref) {
 				// System.err.println(lhs+" is Ref");
-				StoreStmt.handle(u, ptg, summary);
+				StoreStmt.handle(body, m, u, ptg, summary);
 			} else {
 				AnalysisError.unidentifiedAssignStmtCase(u);
 			}

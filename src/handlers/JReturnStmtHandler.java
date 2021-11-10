@@ -28,6 +28,6 @@ public class JReturnStmtHandler {
 			returnedObjects.put(m, new HashSet<>());
 		if (ptg.vars.get(l) != null)
 			returnedObjects.get(m).addAll(ptg.vars.get(l));
-		ptg.setAsReturn(m, l, summary);
+		ptg.setAsReturn(m, l, summary, true);
 	}
 }

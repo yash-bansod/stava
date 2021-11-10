@@ -8,25 +8,35 @@ import java.util.Iterator;
 public class EscapeStatus {
 
 	public HashSet<EscapeState> status;
+	public boolean recaptureFlag;
 
 	public EscapeStatus() {
 		status = new HashSet<>();
 		status.add(NoEscape.getInstance());
+		recaptureFlag = false;
 	}
 
 	public EscapeStatus(EscapeState es) {
 		status = new HashSet<>();
 		status.add(es);
+		recaptureFlag = false;
+	}
+
+	public EscapeStatus(EscapeState es, boolean r) {
+		status = new HashSet<>();
+		status.add(es);
+		recaptureFlag = r;
 	}
 
 	public EscapeStatus(EscapeStatus es) {
 		status = new HashSet<>();
 		status.addAll(es.status);
+		recaptureFlag = es.recaptureFlag;
 	}
 
 	@Override
 	public String toString() {
-		return status.toString();
+		return status.toString() + " [Recapture]: " + String.valueOf(recaptureFlag);
 	}
 
 	public void purge() {
@@ -65,8 +75,21 @@ public class EscapeStatus {
 		purge();
 	}
 
+	public void addEscapeState(EscapeState es, boolean r) {
+		if (es != null){
+			status.add(es);
+			if(!recaptureFlag)
+				recaptureFlag = r;
+		} 
+		purge();
+	}
+
 	public void addEscapeStatus(EscapeStatus es) {
-		if (es != null) this.status.addAll(es.getStatus());
+		if (es != null) {
+			this.status.addAll(es.getStatus());
+			if(!this.recaptureFlag)
+				this.recaptureFlag = es.getRecapture();
+		}
 		purge();
 	}
 
@@ -132,6 +155,14 @@ public class EscapeStatus {
 			_ret.addEscapeState((((ConditionalValue) cv).makeFalseClone()));
 		});
 		return _ret;
+	}
+
+	public boolean getRecapture(){
+		return this.recaptureFlag;
+	}
+
+	public void setRecapture(boolean r){
+		this.recaptureFlag = r;
 	}
 
 }
